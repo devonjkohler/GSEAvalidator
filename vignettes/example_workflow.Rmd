@@ -1,0 +1,83 @@
+---
+title: "GSEAvalidator"
+output: pdf_document
+date: "2023-08-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Example workflow
+
+Simple example workflow for how to use GSEAvalidator. Name of protein need to be 
+parsed for genes and is probably where most bugs will happen.
+
+```{r example}
+library(GSEAvalidator)
+
+load("../data/example_data.Rdata")
+
+prepped_data = prep_msstats_data(example_data$ProteinLevelData, parse_gene=TRUE)
+corr_mat = gen_correlation_matrix(prepped_data, methods = c("pearson"))
+test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json', 
+                             threshold=.3)
+
+```
+
+## Dataset analysis
+
+Moving forward, no data is included in the package for the GSEA analyses. Please 
+contact `kohler.d@northeastern.edu` for access to the data.
+
+### Brunner 2022
+
+#### Hallmark gene sets
+
+``` {r brunner}
+load("../data/brunner.Rdata")
+
+prepped_data = prep_msstats_data(brunner$ProteinLevelData, parse_gene=TRUE)
+corr_mat = gen_correlation_matrix(prepped_data, 
+                                  methods = c("pearson", "spearman"))
+test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json', 
+                             threshold=.5)
+test_df
+
+```
+
+#### Regulatory gene sets
+
+``` {r brunner_regulatory}
+
+reg_test_df = test_GSEA_pathways(corr_mat, '../data/regulatory_pathways.json', 
+                                 threshold=.5)
+reg_test_df
+
+```
+
+### Organoid Data (unpublished)
+
+#### Hallmark gene sets
+
+``` {r brunner}
+load("../data/organoid.Rdata")
+organoid_mapper = read.csv("../data/organoid_gene_list.tsv", sep="\t")
+prepped_data = prep_msstats_data(organoid$ProteinLevelData, gene_map=organoid_mapper)
+corr_mat = gen_correlation_matrix(prepped_data, 
+                                  methods = c("pearson", "spearman"))
+test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json', 
+                             threshold=.5)
+
+```
+
+#### Regulatory gene sets
+
+``` {r brunner_regulatory}
+
+reg_test_df = test_GSEA_pathways(corr_mat, '../data/regulatory_pathways.json', 
+                                 threshold=.5)
+reg_test_df %>% filter(percent > .35)
+
+```
+
