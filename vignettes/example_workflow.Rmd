@@ -10,11 +10,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Example workflow
 
-Simple example workflow for how to use GSEAvalidator. Name of protein need to be 
+Simple example workflow for how to use GSEAvalidator. Name of protein needs to be 
 parsed for genes and is probably where most bugs will happen.
 
 ```{r example}
 library(GSEAvalidator)
+library(tidyverse)
 
 load("../data/example_data.Rdata")
 
@@ -22,7 +23,7 @@ prepped_data = prep_msstats_data(example_data$ProteinLevelData, parse_gene=TRUE)
 corr_mat = gen_correlation_matrix(prepped_data, methods = c("pearson"))
 test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json', 
                              threshold=.3)
-
+test_df
 ```
 
 ## Dataset analysis
@@ -60,7 +61,7 @@ reg_test_df
 
 #### Hallmark gene sets
 
-``` {r brunner}
+``` {r org}
 load("../data/organoid.Rdata")
 organoid_mapper = read.csv("../data/organoid_gene_list.tsv", sep="\t")
 prepped_data = prep_msstats_data(organoid$ProteinLevelData, gene_map=organoid_mapper)
@@ -73,11 +74,115 @@ test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json',
 
 #### Regulatory gene sets
 
+``` {r org_regulatory}
+
+reg_test_df = test_GSEA_pathways(corr_mat, '../data/regulatory_pathways.json', 
+                                 threshold=.5)
+reg_test_df %>% filter(percent > .5 & percent_measured > .15)
+
+```
+
+### Leduc 2022
+
+#### Hallmark gene sets
+
+``` {r leduc}
+leduc = read.csv("/Users/kohler.d/Library/CloudStorage/OneDrive-NortheasternUniversity/Northeastern/Research/MS_data/Single_cell/Leduc/MSstats/MSstats_summarized.csv")
+leduc$originalRUN = paste(leduc$Run, leduc$Channel, sep="_")
+leduc$LogIntensities = leduc$Abundance
+leduc$Protein = unlist(lapply(leduc$Protein, function(x){
+  str_split(str_split(x, "\\|")[[1]][[3]], "_")[[1]][[1]]
+}))
+
+leduc = leduc %>% dplyr::group_by(originalRUN, Protein) %>% 
+  dplyr::summarise(LogIntensities = max(LogIntensities))
+
+prepped_data = prep_msstats_data(leduc)
+corr_mat = gen_correlation_matrix(prepped_data, 
+                                  methods = c("pearson"))
+test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json', 
+                             threshold=.5)
+
+test_df %>% filter(percent_measured > .2 & 
+                         percent > .33)
+
+
+genes_in_path = extract_genes_in_path(corr_mat, "HALLMARK_ADIPOGENESIS", 
+                                      '../data/hallmark_pathways.json')
+
+for (col1 in colnames(prepped_data[, genes_in_path])) {
+  for (col2 in colnames(prepped_data[, genes_in_path])) {
+    if (col1 != col2) {
+      plt = ggplot(prepped_data, aes_string(x = col1, y = col2)) +
+        geom_point() +
+        geom_smooth(method=lm, se=TRUE, fullrange=TRUE) + 
+        labs(title=paste0("Scatter Plot of ", col1, " vs ", col2))
+      suppressWarnings(print(plt))
+    }
+  }
+}
+
+```
+
+#### Regulatory gene sets
+
+``` {r leduc_regulatory}
+
+reg_test_df = test_GSEA_pathways(corr_mat, '../data/regulatory_pathways.json', 
+                                 threshold=.5)
+reg_test_df %>% filter(percent_measured > .2 & percent > .33)
+
+genes_in_path = extract_genes_in_path(corr_mat, "SOX11_TARGET_GENES", 
+                                      '../data/regulatory_pathways.json')
+
+for (col1 in colnames(prepped_data[, genes_in_path])) {
+  for (col2 in colnames(prepped_data[, genes_in_path])) {
+    if (col1 != col2) {
+      plt = ggplot(prepped_data, aes_string(x = col1, y = col2)) +
+        geom_point() +
+          geom_smooth(method = "lm", se = TRUE) + 
+        labs(title=paste0("Scatter Plot of ", col1, " vs ", col2))
+      print(plt)
+    }
+  }
+}
+
+```
+
+### Montalvo 2022
+
+#### Hallmark gene sets
+
+``` {r montalvo}
+load("../data/montalvo.Rdata")
+montalvo = montalvo$ProteinLevelData
+
+montalvo$originalRUN = paste(montalvo$Run, montalvo$Channel, sep="_")
+montalvo$LogIntensities = montalvo$Abundance
+montalvo$Protein = unlist(lapply(montalvo$Protein, function(x){
+  str_split(str_split(x, "\\|")[[1]][[3]], "_")[[1]][[1]]
+}))
+
+montalvo = montalvo %>% dplyr::group_by(originalRUN, Protein) %>% 
+  dplyr::summarise(LogIntensities = max(LogIntensities))
+
+
+prepped_data = prep_msstats_data(montalvo)
+corr_mat = gen_correlation_matrix(prepped_data, 
+                                  methods = c("pearson"))
+test_df = test_GSEA_pathways(corr_mat, '../data/hallmark_pathways.json', 
+                             threshold=.5)
+test_df %>% filter(percent_measured > .2 & 
+                         percent > .2)
+
+```
+
+#### Regulatory gene sets
+
 ``` {r brunner_regulatory}
 
 reg_test_df = test_GSEA_pathways(corr_mat, '../data/regulatory_pathways.json', 
                                  threshold=.5)
-reg_test_df %>% filter(percent > .35)
+reg_test_df %>% filter(percent > .5 & percent_measured > .15)
 
 ```
-

@@ -28,7 +28,6 @@ prep_msstats_data = function(data, gene_map=NULL, parse_gene=FALSE){
     data$Protein = data$To
   }
 
-
   parse_data = data %>% select(Protein, originalRUN, LogIntensities)
   wide_data = parse_data %>% pivot_wider(names_from=Protein,
                                          values_from=LogIntensities)
@@ -51,7 +50,9 @@ gen_correlation_matrix = function(
   correlations = list()
   for (m in methods){
     cor_mat = suppressWarnings(cor(data, method=m, use="pairwise.complete.obs"))
+    cor_mat[cor_mat > .9999] = NA
     correlations[m] = list(abs(cor_mat))
+
   }
 
   return(correlations)
@@ -62,7 +63,7 @@ gen_correlation_matrix = function(
 #' takes as input correlation list and gsea file path
 #'
 #' @param correlation_data output of gen_correlation_matrix function
-#' @param gsea_path file path to GSEA JSON file
+#' @param gsea_path_db file path to GSEA JSON file
 #' @param threshold correlation threshold to count as significant correlation
 #'
 #' @import rjson
@@ -70,9 +71,9 @@ gen_correlation_matrix = function(
 #' @import data.table
 #'
 #' @export
-test_GSEA_pathways = function(correlation_data, gsea_path, threshold=.5){
+test_GSEA_pathways = function(correlation_data, gsea_path_db, threshold=.5){
 
-  gsea = fromJSON(file=gsea_path)
+  gsea = fromJSON(file=gsea_path_db)
   pathways = names(gsea)
 
   measured_genes = colnames(correlation_data[[1]])
@@ -137,3 +138,22 @@ test_GSEA_pathways = function(correlation_data, gsea_path, threshold=.5){
   return(results)
 }
 
+#' Return observed genes in a given pathway
+#'
+#' @export
+extract_genes_in_path = function(correlation_data,
+                                 gsea_path,
+                                 gsea_path_db){
+
+  gsea = fromJSON(file=gsea_path_db)
+  pathways = names(gsea)
+
+  measured_genes = colnames(correlation_data[[1]])
+
+  current_path = gsea[[gsea_path]]
+  genes_in_path = current_path$geneSymbols
+
+  measured_genes_in_path = intersect(genes_in_path, measured_genes)
+
+  return(measured_genes_in_path)
+}
